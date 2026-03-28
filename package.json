@@ -33,8 +33,7 @@
     "files": [
       "main.js",
       "preload.js",
-      "offline.html",
-      "icons/**/*"
+      "offline.html"
     ],
     "publish": [
       {
@@ -44,25 +43,12 @@
       }
     ],
     "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": ["x64"]
-        }
-      ],
-      "icon": "icons/icon.ico"
+      "target": "nsis"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": true,
-      "allowToChangeInstallationDirectory": false,
-      "deleteAppDataOnUninstall": true,
       "shortcutName": "Season Fresh ERP"
-    },
-    "mac": {
-      "target": ["dmg"],
-      "icon": "icons/icon.icns",
-      "category": "public.app-category.business"
     }
   }
 }
