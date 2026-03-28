@@ -1,6 +1,6 @@
 {
   "name": "season-fresh-desktop",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Desktop client for Season Fresh ERP — loads the live production URL with auto-updates via GitHub Releases.",
   "main": "main.js",
   "author": "Season Fresh <info@seasonfresh.co.zw>",
