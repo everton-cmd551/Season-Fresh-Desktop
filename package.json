@@ -1,6 +1,6 @@
 {
   "name": "season-fresh-desktop",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Desktop client for Season Fresh ERP — loads the live production URL with auto-updates via GitHub Releases.",
   "main": "main.js",
   "author": "Season Fresh <info@seasonfresh.co.zw>",
@@ -17,7 +17,12 @@
   },
   "dependencies": {
     "electron-log": "^5.3.0",
-    "electron-updater": "^6.3.9"
+    "electron-updater": "^6.3.9",
+    "jimp": "^1.6.0",
+    "pkg-dir": "^4.2.0",
+    "png-to-ico": "^3.0.1",
+    "png2icons": "^2.0.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "cross-env": "^7.0.3",
@@ -43,7 +48,8 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "build/icon.ico"
     },
     "nsis": {
       "oneClick": true,
