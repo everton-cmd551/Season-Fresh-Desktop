@@ -101,6 +101,25 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // ── ZOOM CONTROLS (Ctrl + / Ctrl - / Ctrl 0) ──────────────────────
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    // Only intercept events when Ctrl (or Cmd on Mac) is pressed
+    if (input.control || input.meta) {
+      if (input.key === '=' || input.key === '+') {
+        const currentZoom = mainWindow.webContents.getZoomFactor();
+        mainWindow.webContents.setZoomFactor(currentZoom + 0.1);
+        event.preventDefault();
+      } else if (input.key === '-') {
+        const currentZoom = mainWindow.webContents.getZoomFactor();
+        mainWindow.webContents.setZoomFactor(currentZoom - 0.1);
+        event.preventDefault();
+      } else if (input.key === '0') {
+        mainWindow.webContents.setZoomFactor(1.0);
+        event.preventDefault();
+      }
+    }
+  });
+
   // ── OFFLINE FALLBACK ──────────────────────────────────────────────
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     log.error(`Page load failed (${errorCode}): ${errorDescription}`);
