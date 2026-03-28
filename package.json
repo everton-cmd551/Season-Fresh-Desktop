@@ -1,6 +1,6 @@
 {
   "name": "season-fresh-desktop",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Desktop client for Season Fresh ERP — loads the live production URL with auto-updates via GitHub Releases.",
   "main": "main.js",
   "author": "Season Fresh <info@seasonfresh.co.zw>",
@@ -31,7 +31,7 @@
   },
   "build": {
     "appId": "com.seasonfresh.erp",
-    "productName": "Season Fresh ERP",
+    "productName": "Season Fresh",
     "directories": {
       "output": "dist"
     },
@@ -54,7 +54,7 @@
     "nsis": {
       "oneClick": true,
       "perMachine": true,
-      "shortcutName": "Season Fresh ERP"
+      "shortcutName": "Season Fresh"
     }
   }
 }

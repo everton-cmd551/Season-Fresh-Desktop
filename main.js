@@ -63,7 +63,7 @@ function createWindow() {
     minWidth: 1280,
     minHeight: 720,
     show: false,
-    title: 'Season Fresh ERP',
+    title: 'Season Fresh',
     backgroundColor: '#0f172a',
     autoHideMenuBar: true,
     webPreferences: {
@@ -194,7 +194,7 @@ function setupAutoUpdater() {
     log.info(`Update available: v${info.version}`);
     if (mainWindow) {
       mainWindow.webContents.executeJavaScript(
-        `document.title = "Season Fresh ERP — Downloading update v${info.version}..."`
+        `document.title = "Season Fresh — Downloading update v${info.version}..."`
       ).catch(() => {});
     }
   });
@@ -213,7 +213,7 @@ function setupAutoUpdater() {
       .showMessageBox(mainWindow, {
         type: 'info',
         title: 'Update Ready',
-        message: `Season Fresh ERP v${info.version} is ready to install.`,
+        message: `Season Fresh v${info.version} is ready to install.`,
         detail: 'The application will restart to apply the update.',
         buttons: ['Restart Now', 'Later'],
         defaultId: 0,
