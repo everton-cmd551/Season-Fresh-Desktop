@@ -1,0 +1,68 @@
+{
+  "name": "season-fresh-desktop",
+  "version": "1.0.0",
+  "description": "Desktop client for Season Fresh ERP — loads the live production URL with auto-updates via GitHub Releases.",
+  "main": "main.js",
+  "author": "Season Fresh <info@seasonfresh.co.zw>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/everton-cmd551/Season-Fresh-Desktop.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "cross-env NODE_ENV=development electron .",
+    "pack": "electron-builder --dir",
+    "release": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "electron-log": "^5.3.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.seasonfresh.erp",
+    "productName": "Season Fresh ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "offline.html",
+      "icons/**/*"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "everton-cmd551",
+        "repo": "Season-Fresh-Desktop"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": true,
+      "shortcutName": "Season Fresh ERP"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "icons/icon.icns",
+      "category": "public.app-category.business"
+    }
+  }
+}
