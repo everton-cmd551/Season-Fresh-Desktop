@@ -1,15 +1,16 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Season Fresh ERP — Electron Desktop Shell (Thin Client)
+// Season Fresh — Electron Desktop Shell (Thin Client)
 // ═══════════════════════════════════════════════════════════════════════
 // This is a security-hardened wrapper. It contains NO ERP business logic.
 // It loads the live Vercel production URL and manages auto-updates via
 // GitHub Releases.
 // ═══════════════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, dialog, shell, session, safeStorage, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 const path = require('path');
+const fs = require('fs');
 
 // ── CONFIGURATION ─────────────────────────────────────────────────────
 const PRODUCTION_URL = 'https://season-fresh.vercel.app';
@@ -39,6 +40,91 @@ if (!gotTheLock) {
   });
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// CREDENTIAL VAULT — Encrypted at rest via Windows DPAPI / macOS Keychain
+// ══════════════════════════════════════════════════════════════════════════
+// Security Model:
+// 1. Passwords are encrypted using Electron's safeStorage API which delegates
+//    to Windows DPAPI — the encrypted blob can ONLY be decrypted by the same
+//    Windows user account that encrypted it.
+// 2. The encrypted credential file lives in %APPDATA%/season-fresh-desktop/
+//    and is NEVER in plain text on disk.
+// 3. Browser session data (cookies, localStorage) is still wiped on every
+//    launch —  the server always issues a fresh auth token.
+// 4. The idle timeout (13min + 2min warning) in the web app still forces
+//    re-authentication after inactivity.
+// ══════════════════════════════════════════════════════════════════════════
+
+function getCredentialPath() {
+  return path.join(app.getPath('userData'), '.credentials.enc.json');
+}
+
+function saveCredentials(email, password) {
+  try {
+    if (!safeStorage.isEncryptionAvailable()) {
+      log.warn('Credential save skipped — OS encryption not available.');
+      return false;
+    }
+    const encryptedPassword = safeStorage.encryptString(password);
+    const data = {
+      email: email,
+      password: encryptedPassword.toString('base64'),
+      savedAt: new Date().toISOString(),
+    };
+    fs.writeFileSync(getCredentialPath(), JSON.stringify(data), 'utf-8');
+    log.info(`Credentials saved for ${email}`);
+    return true;
+  } catch (e) {
+    log.error('Failed to save credentials:', e.message);
+    return false;
+  }
+}
+
+function loadCredentials() {
+  try {
+    const credPath = getCredentialPath();
+    if (!fs.existsSync(credPath)) return null;
+    if (!safeStorage.isEncryptionAvailable()) return null;
+
+    const raw = JSON.parse(fs.readFileSync(credPath, 'utf-8'));
+    const decryptedPassword = safeStorage.decryptString(
+      Buffer.from(raw.password, 'base64')
+    );
+    return { email: raw.email, password: decryptedPassword };
+  } catch (e) {
+    log.error('Failed to load credentials:', e.message);
+    // Corrupted file — delete it
+    try { fs.unlinkSync(getCredentialPath()); } catch (_) {}
+    return null;
+  }
+}
+
+function clearCredentials() {
+  try {
+    const credPath = getCredentialPath();
+    if (fs.existsSync(credPath)) {
+      fs.unlinkSync(credPath);
+      log.info('Saved credentials cleared.');
+    }
+  } catch (e) {
+    log.error('Failed to clear credentials:', e.message);
+  }
+}
+
+// ── IPC HANDLERS (Renderer ↔ Main Process) ────────────────────────────
+ipcMain.handle('credentials:save', (_event, email, password) => {
+  return { success: saveCredentials(email, password) };
+});
+
+ipcMain.handle('credentials:get', () => {
+  return loadCredentials();
+});
+
+ipcMain.handle('credentials:clear', () => {
+  clearCredentials();
+  return { success: true };
+});
+
 // ── HELPERS ───────────────────────────────────────────────────────────
 function isAllowedUrl(url) {
   try {
@@ -53,6 +139,86 @@ function isAllowedUrl(url) {
   } catch {
     return false;
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// LOGIN PAGE CREDENTIAL INJECTION
+// ══════════════════════════════════════════════════════════════════════════
+// After the login page finishes loading, we:
+// 1. Check if saved credentials exist in the vault
+// 2. If yes, auto-fill the email + password fields in the DOM
+// 3. Hook the form's submit event to capture new/updated credentials
+//
+// Since the login form uses uncontrolled React inputs with FormData,
+// setting .value directly works — FormData reads from the DOM value prop.
+// ══════════════════════════════════════════════════════════════════════════
+
+function injectCredentialHelper() {
+  const creds = loadCredentials();
+
+  // Build the injection script
+  const fillEmail = creds ? JSON.stringify(creds.email) : 'null';
+  const fillPassword = creds ? JSON.stringify(creds.password) : 'null';
+
+  const script = `
+    (function() {
+      var savedEmail = ${fillEmail};
+      var savedPassword = ${fillPassword};
+      var maxAttempts = 20;
+      var attempt = 0;
+
+      function tryInject() {
+        attempt++;
+        var emailInput = document.querySelector('input[name="email"]');
+        var passwordInput = document.querySelector('input[name="password"]');
+
+        if (!emailInput || !passwordInput) {
+          if (attempt < maxAttempts) {
+            setTimeout(tryInject, 250);
+          }
+          return;
+        }
+
+        // ── FILL SAVED CREDENTIALS ──────────────────────────────────
+        if (savedEmail && savedPassword) {
+          // Use the native setter to ensure React picks up the value
+          var nativeSetter = Object.getOwnPropertyDescriptor(
+            HTMLInputElement.prototype, 'value'
+          ).set;
+
+          nativeSetter.call(emailInput, savedEmail);
+          emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+          emailInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+          nativeSetter.call(passwordInput, savedPassword);
+          passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+          passwordInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+          console.log('[Season Fresh Desktop] Saved credentials loaded.');
+        }
+
+        // ── CAPTURE ON SUBMIT ───────────────────────────────────────
+        // Hook the form submit to save whatever the user actually submits
+        var form = emailInput.closest('form');
+        if (form && !form.__sfCredHooked) {
+          form.__sfCredHooked = true;
+          form.addEventListener('submit', function() {
+            var email = emailInput.value;
+            var password = passwordInput.value;
+            if (email && password && window.desktopApp && window.desktopApp.saveCredentials) {
+              window.desktopApp.saveCredentials(email, password);
+            }
+          }, true); // capture phase — runs before React's handler
+        }
+      }
+
+      tryInject();
+    })();
+  `;
+
+  mainWindow.webContents.executeJavaScript(script).catch((err) => {
+    log.error('Credential injection failed:', err.message);
+  });
 }
 
 // ── WINDOW CREATION ───────────────────────────────────────────────────
@@ -80,18 +246,35 @@ function createWindow() {
   mainWindow.show();
 
   // ── CLEAR SESSION ON LAUNCH ───────────────────────────────────────
-  // Enforce zero-trust on startup: clear all session cookies and local storage
-  // so the user is forced to authenticate from scratch every time the app opens.
+  // Wipe browser cookies/localStorage so the server issues a fresh token.
+  // NOTE: This does NOT affect the credential vault (stored in %APPDATA%
+  // via safeStorage, completely outside the browser session).
   session.defaultSession.clearStorageData().then(() => {
-    // ── LOAD PRODUCTION URL ───────────────────────────────────────────
     mainWindow.loadURL(PRODUCTION_URL);
   }).catch((err) => {
     log.error('Failed to clear session data:', err);
-    mainWindow.loadURL(PRODUCTION_URL); // fallback
+    mainWindow.loadURL(PRODUCTION_URL);
+  });
+
+  // ── DETECT LOGIN PAGE & INJECT CREDENTIALS ────────────────────────
+  mainWindow.webContents.on('did-finish-load', () => {
+    const url = mainWindow.webContents.getURL();
+    if (url.includes('/login')) {
+      log.info('Login page detected — injecting credential helper.');
+      injectCredentialHelper();
+    }
+  });
+
+  // Also handle client-side navigation (e.g. session timeout redirect)
+  mainWindow.webContents.on('did-navigate', (_event, url) => {
+    if (url.includes('/login')) {
+      log.info('Navigated to login — injecting credential helper.');
+      // Small delay to let the page render
+      setTimeout(() => injectCredentialHelper(), 500);
+    }
   });
 
   // ── NAVIGATION LOCK ───────────────────────────────────────────────
-  // Block navigation to any URL outside the allowed hosts
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
     if (!isAllowedUrl(navigationUrl)) {
       event.preventDefault();
@@ -100,7 +283,6 @@ function createWindow() {
   });
 
   // ── NEW WINDOW LOCK ───────────────────────────────────────────────
-  // Open external links (e.g. document viewer) in the default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedUrl(url)) {
       return { action: 'allow' };
@@ -111,7 +293,6 @@ function createWindow() {
 
   // ── ZOOM CONTROLS (Ctrl + / Ctrl - / Ctrl 0) ──────────────────────
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    // Only intercept events when Ctrl (or Cmd on Mac) is pressed
     if (input.control || input.meta) {
       if (input.key === '=' || input.key === '+') {
         const currentZoom = mainWindow.webContents.getZoomFactor();
