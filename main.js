@@ -79,8 +79,16 @@ function createWindow() {
   mainWindow.maximize();
   mainWindow.show();
 
-  // ── LOAD PRODUCTION URL ───────────────────────────────────────────
-  mainWindow.loadURL(PRODUCTION_URL);
+  // ── CLEAR SESSION ON LAUNCH ───────────────────────────────────────
+  // Enforce zero-trust on startup: clear all session cookies and local storage
+  // so the user is forced to authenticate from scratch every time the app opens.
+  session.defaultSession.clearStorageData().then(() => {
+    // ── LOAD PRODUCTION URL ───────────────────────────────────────────
+    mainWindow.loadURL(PRODUCTION_URL);
+  }).catch((err) => {
+    log.error('Failed to clear session data:', err);
+    mainWindow.loadURL(PRODUCTION_URL); // fallback
+  });
 
   // ── NAVIGATION LOCK ───────────────────────────────────────────────
   // Block navigation to any URL outside the allowed hosts
