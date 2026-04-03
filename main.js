@@ -18,6 +18,7 @@ const ALLOWED_HOSTS = [
   'season-fresh.vercel.app',
   'season-fresh-*.vercel.app',  // Preview deployments
   'vercel.live',                // Vercel toolbar
+  '*.public.blob.vercel-storage.com', // Vercel Blob attachments
 ];
 
 // ── LOGGING ───────────────────────────────────────────────────────────
@@ -131,8 +132,8 @@ function isAllowedUrl(url) {
     const parsed = new URL(url);
     return ALLOWED_HOSTS.some(host => {
       if (host.includes('*')) {
-        const pattern = host.replace(/\*/g, '.*');
-        return new RegExp(`^${pattern}$`).test(parsed.hostname);
+        const pattern = host.replace(/\./g, '\\.').replace(/\*/g, '.*');
+        return new RegExp(`^${pattern}$`, 'i').test(parsed.hostname);
       }
       return parsed.hostname === host;
     });
@@ -254,6 +255,57 @@ function createWindow() {
   }).catch((err) => {
     log.error('Failed to clear session data:', err);
     mainWindow.loadURL(PRODUCTION_URL);
+  });
+
+  // ── DOWNLOAD HANDLING ─────────────────────────────────────────────
+  session.defaultSession.on('will-download', (event, item, webContents) => {
+    // Show download progress in the window title and taskbar
+    item.on('updated', (event, state) => {
+      if (state === 'progressing') {
+        if (!item.isPaused() && mainWindow) {
+          const received = item.getReceivedBytes();
+          const total = item.getTotalBytes();
+          if (total > 0) {
+            const percent = received / total;
+            mainWindow.setProgressBar(percent);
+            mainWindow.setTitle(`Season Fresh — Downloading ${item.getFilename()} (${Math.floor(percent * 100)}%)`);
+          } else {
+            mainWindow.setTitle(`Season Fresh — Downloading ${item.getFilename()}...`);
+          }
+        }
+      }
+    });
+
+    item.once('done', (event, state) => {
+      if (mainWindow) {
+        mainWindow.setProgressBar(-1);
+        mainWindow.setTitle('Season Fresh');
+      }
+      if (state === 'completed') {
+        log.info(`Download completed: ${item.getSavePath()}`);
+        dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Download Complete',
+          message: `Successfully downloaded ${item.getFilename()}`,
+          buttons: ['Open File', 'Show in Folder', 'OK'],
+          defaultId: 0,
+          cancelId: 2,
+        }).then(({ response }) => {
+          if (response === 0) {
+            shell.openPath(item.getSavePath());
+          } else if (response === 1) {
+            shell.showItemInFolder(item.getSavePath());
+          }
+        });
+      } else {
+        log.error(`Download failed: ${state}`);
+        dialog.showMessageBox(mainWindow, {
+          title: 'Download Failed',
+          type: 'error',
+          message: `Failed to download ${item.getFilename()}.\nStatus: ${state}`
+        });
+      }
+    });
   });
 
   // ── DETECT LOGIN PAGE & INJECT CREDENTIALS ────────────────────────
