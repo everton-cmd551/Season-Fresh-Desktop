@@ -404,9 +404,7 @@ function createWindow() {
 // → New token → Repository: Season-Fresh-Desktop → Permissions: Contents (Read)
 // Then replace the placeholder below with the actual token.
 // ──────────────────────────────────────────────────────────────────────
-// Injected at build time via CI/CD secrets (UPDATER_PAT environment variable).
-// This value gets compiled into the binary and never appears in source code.
-const UPDATER_TOKEN = process.env.UPDATER_PAT || '';
+const UPDATER_TOKEN = '%%GH_TOKEN_PLACEHOLDER%%';
 
 function setupAutoUpdater() {
   // Only check for updates in production (packaged) builds
