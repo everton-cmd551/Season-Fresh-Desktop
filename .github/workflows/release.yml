@@ -24,13 +24,7 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Inject Token
-        shell: pwsh
-        run: |
-          (Get-Content main.js) -replace '%%GH_TOKEN_PLACEHOLDER%%', "${{ secrets.UPDATER_PAT }}" | Set-Content main.js
-
       - name: Build & Publish
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-          UPDATER_PAT: ${{ secrets.UPDATER_PAT }}
         run: npm run release

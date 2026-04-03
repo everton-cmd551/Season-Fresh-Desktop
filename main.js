@@ -251,10 +251,10 @@ function createWindow() {
   // NOTE: This does NOT affect the credential vault (stored in %APPDATA%
   // via safeStorage, completely outside the browser session).
   session.defaultSession.clearStorageData().then(() => {
-    mainWindow.loadURL(PRODUCTION_URL);
+    mainWindow.loadURL(`${PRODUCTION_URL}/login`);
   }).catch((err) => {
     log.error('Failed to clear session data:', err);
-    mainWindow.loadURL(PRODUCTION_URL);
+    mainWindow.loadURL(`${PRODUCTION_URL}/login`);
   });
 
   // ── DOWNLOAD HANDLING ─────────────────────────────────────────────
@@ -390,21 +390,10 @@ function createWindow() {
 }
 
 // ── AUTO-UPDATE LIFECYCLE ─────────────────────────────────────────────
-// PRIVATE REPO AUTHENTICATION:
-// Since the Season-Fresh-Desktop repo is private, the auto-updater needs
-// a read-only GitHub Personal Access Token (PAT) to download release assets.
-//
-// Security Model:
-// - This token has READ-ONLY access (Fine-Grained PAT with "Contents: Read")
-// - It is embedded in the compiled .exe binary — not visible in plain text
-// - Only 10 internal staff have the installer
-// - The token CANNOT push code, create releases, or modify the repo
-//
-// To generate: GitHub → Settings → Developer Settings → Fine-grained tokens
-// → New token → Repository: Season-Fresh-Desktop → Permissions: Contents (Read)
-// Then replace the placeholder below with the actual token.
+// The Season-Fresh-Desktop repo is PUBLIC on GitHub, so no authentication
+// token is needed. electron-updater fetches latest.yml and the installer
+// directly from the public GitHub Releases page.
 // ──────────────────────────────────────────────────────────────────────
-const UPDATER_TOKEN = '%%GH_TOKEN_PLACEHOLDER%%';
 
 function setupAutoUpdater() {
   // Only check for updates in production (packaged) builds
@@ -413,13 +402,11 @@ function setupAutoUpdater() {
     return;
   }
 
-  // Configure private repo authentication
+  // Public repo — no token required
   autoUpdater.setFeedURL({
     provider: 'github',
     owner: 'everton-cmd551',
     repo: 'Season-Fresh-Desktop',
-    private: true,
-    token: UPDATER_TOKEN,
   });
 
   autoUpdater.autoDownload = true;
