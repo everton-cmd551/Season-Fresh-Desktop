@@ -6,7 +6,7 @@
 // GitHub Releases.
 // ═══════════════════════════════════════════════════════════════════════
 
-const { app, BrowserWindow, dialog, shell, session, safeStorage, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, shell, session, safeStorage, ipcMain, Tray, Menu, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const log = require('electron-log');
 const path = require('path');
@@ -27,6 +27,11 @@ autoUpdater.logger = log;
 autoUpdater.logger.transports.file.level = 'info';
 
 let mainWindow = null;
+let tray = null;
+let isQuitting = false;
+
+// ── App Identity (Critical for Windows native toasts) ─────────────────────────
+app.setAppUserModelId('com.seasonfresh.erp');
 
 // ── SINGLE INSTANCE LOCK ──────────────────────────────────────────────
 const gotTheLock = app.requestSingleInstanceLock();
@@ -242,6 +247,14 @@ function createWindow() {
     },
   });
 
+  // ── Close-to-tray behaviour ───────────────────────────────────────────
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault();
+      mainWindow.hide();
+    }
+  });
+
   // Maximize on launch for dashboard-heavy UI
   mainWindow.maximize();
   mainWindow.show();
@@ -389,6 +402,72 @@ function createWindow() {
   });
 }
 
+// ── SYSTEM TRAY ───────────────────────────────────────────────────────
+function createTray() {
+  // Use existing icon, resizing for tray if necessary
+  const iconPath = path.join(__dirname, 'build', 'icon.png');
+  let trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+    if (process.platform === 'win32') {
+      trayIcon = trayIcon.resize({ width: 16, height: 16 });
+    }
+  } catch {
+    trayIcon = nativeImage.createEmpty();
+  }
+
+  tray = new Tray(trayIcon);
+  tray.setToolTip('Season Fresh');
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Open Season Fresh',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      },
+    },
+    { type: 'separator' },
+    {
+      label: 'Quit',
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+
+  tray.on('click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) {
+        mainWindow.focus();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    } else {
+      createWindow();
+    }
+  });
+}
+
+// ── AUTO-LAUNCH ───────────────────────────────────────────────────────
+function configureAutoLaunch() {
+  if (app.isPackaged) {
+    app.setLoginItemSettings({
+      openAtLogin: true,
+      path: app.getPath('exe'),
+      args: ['--hidden']
+    });
+  }
+}
+
 // ── AUTO-UPDATE LIFECYCLE ─────────────────────────────────────────────
 // The Season-Fresh-Desktop repo is PUBLIC on GitHub, so no authentication
 // token is needed. electron-updater fetches latest.yml and the installer
@@ -466,19 +545,35 @@ function setupAutoUpdater() {
 }
 
 // ── APP LIFECYCLE ─────────────────────────────────────────────────────
+app.on('before-quit', () => {
+  isQuitting = true;
+});
+
 app.whenReady().then(() => {
+  const startHidden = process.argv.includes('--hidden');
+
   createWindow();
+
+  if (startHidden && mainWindow) {
+    mainWindow.hide();
+  }
+
+  createTray();
+  configureAutoLaunch();
   setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
+    } else if (mainWindow) {
+      mainWindow.show();
     }
   });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
+  if (process.platform === 'darwin') {
+    // macOS apps stay active until Cmd+Q
   }
+  // Windows/Linux: do NOT quit, stay in system tray.
 });
