@@ -13,10 +13,10 @@ const path = require('path');
 const fs = require('fs');
 
 // ── CONFIGURATION ─────────────────────────────────────────────────────
-const PRODUCTION_URL = 'https://season-fresh.vercel.app';
+const PRODUCTION_URL = 'https://season-fresh-everton-cmd551s-projects.vercel.app';
 const ALLOWED_HOSTS = [
-  'season-fresh.vercel.app',
-  'season-fresh-*.vercel.app',  // Preview deployments
+  'season-fresh-everton-cmd551s-projects.vercel.app',
+  'season-fresh-*-everton-cmd551s-projects.vercel.app',  // Preview deployments
   'vercel.live',                // Vercel toolbar
   '*.public.blob.vercel-storage.com', // Vercel Blob attachments
 ];
@@ -389,12 +389,12 @@ function createWindow() {
       responseHeaders: {
         ...details.responseHeaders,
         'Content-Security-Policy': [
-          "default-src 'self' https://season-fresh.vercel.app https://*.vercel.app; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://season-fresh.vercel.app https://*.vercel.app; " +
-          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://season-fresh.vercel.app https://*.vercel.app; " +
+          "default-src 'self' https://season-fresh-everton-cmd551s-projects.vercel.app https://*.vercel.app; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://season-fresh-everton-cmd551s-projects.vercel.app https://*.vercel.app; " +
+          "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://season-fresh-everton-cmd551s-projects.vercel.app https://*.vercel.app; " +
           "font-src 'self' https://fonts.gstatic.com; " +
           "img-src 'self' data: blob: https:; " +
-          "connect-src 'self' https://season-fresh.vercel.app https://*.vercel.app https://*.neon.tech wss://*.neon.tech;"
+          "connect-src 'self' https://season-fresh-everton-cmd551s-projects.vercel.app https://*.vercel.app https://*.neon.tech wss://*.neon.tech;"
         ],
       },
     });
