@@ -1,6 +1,6 @@
 {
   "name": "season-fresh-desktop",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Desktop client for Season Fresh ERP — loads the live production URL with auto-updates via GitHub Releases.",
   "main": "main.js",
   "author": "Season Fresh <info@seasonfresh.co.zw>",
@@ -12,7 +12,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "cross-env NODE_ENV=development electron .",
+    "prepack": "taskkill /f /im \"Season Fresh.exe\" /fi \"status eq running\" 2>nul || exit 0",
     "pack": "electron-builder --dir",
+    "prerelease": "taskkill /f /im \"Season Fresh.exe\" /fi \"status eq running\" 2>nul || exit 0",
     "release": "electron-builder --publish always"
   },
   "dependencies": {
